@@ -136,6 +136,7 @@ resource "aws_ecs_task_definition" "ahmad-taskdef-terra" {
   }
 }
 
+# -----   For CodeDeploy -------- #
 resource "aws_ecs_service" "ahmad-service-terra-deploy" {
   name = "ahmad-service-terra-deploy"
   launch_type = "EC2"
@@ -153,22 +154,11 @@ resource "aws_ecs_service" "ahmad-service-terra-deploy" {
       type = "CODE_DEPLOY"
   }
 
-  # deployment_circuit_breaker {
-  #   enable = true
-  #   rollback = false
-  # }
-
   load_balancer {
     target_group_arn = aws_lb_target_group.ahmad-lb-targroup-terra.arn
     container_name = "nginx-terra"
     container_port = 80
   }
-
-  # load_balancer {
-  #   target_group_arn = aws_lb_target_group.ahmad-lb-targroup2-terra.arn
-  #   container_name   = "nginx-terra"
-  #   container_port   = 80
-  # }
 
   lifecycle {
     ignore_changes = [load_balancer, task_definition]
@@ -181,6 +171,42 @@ resource "aws_ecs_service" "ahmad-service-terra-deploy" {
   }
 }
 
+
+# ----- For ECS Deployment in CodePipeline ----- #
+# resource "aws_ecs_service" "ahmad-service-terra-deploy" {
+#   name = "ahmad-service-terra-deploy"
+#   launch_type = "EC2"
+#   cluster = aws_ecs_cluster.ahmad-ecs-cluster-terra.id
+#   task_definition = aws_ecs_task_definition.ahmad-taskdef-terra.arn
+#   desired_count = 2
+  
+#   network_configuration {
+#     subnets = [aws_subnet.ahmad-public-subnet1-terra.id, aws_subnet.ahmad-public-subnet2-terra.id]
+#     security_groups = [aws_security_group.ahmad-sg-terra.id]
+#     assign_public_ip = false
+#   }
+
+#   deployment_circuit_breaker {
+#     enable = true
+#     rollback = false
+#   }
+
+#   load_balancer {
+#     target_group_arn = aws_lb_target_group.ahmad-lb-targroup-terra.arn
+#     container_name = "nginx-terra"
+#     container_port = 80
+#   }
+
+#   lifecycle {
+#     ignore_changes = [load_balancer, task_definition]
+#   }
+  
+#   depends_on = [ aws_lb_listener.ahmad-lb-listener-terra ]
+#   tags = {
+#     "Name" = "ahmad-service-terra"
+#     "owner" = "ahmad"
+#   }
+# }
 
 ####################################################
 # Create an IAM role - ecsInstanceRole  
@@ -256,8 +282,6 @@ resource "aws_autoscaling_group" "ahmad-autoscale-group-terra" {
     aws_subnet.ahmad-public-subnet2-terra.id
   ]
 
-  # availability_zones = ["us-east-2a", "us-east-2c"]
-
   desired_capacity   = 4
   max_size           = 6
   min_size           = 2
@@ -325,6 +349,7 @@ resource "aws_lb_listener" "ahmad-lb-listener-terra" {
     ignore_changes = [default_action]
   }
 }
+
 ################### Permissions for CodeBuild ######################
 
 resource "aws_iam_role" "ahmad-codebuild-role-terra" {
@@ -344,11 +369,10 @@ resource "aws_iam_role" "ahmad-codebuild-role-terra" {
     })
 
     tags = {
-    "Name" = "ahmad-codebuild-role-terra"
-    "owner" = "ahmad"
-  }
+      "Name" = "ahmad-codebuild-role-terra"
+      "owner" = "ahmad"
+    }
 }
-
 
 resource "aws_iam_role_policy_attachment" "ahmad-s3-readonly-codebuild-perm" {
   role = aws_iam_role.ahmad-codebuild-role-terra.name
@@ -393,12 +417,22 @@ resource "aws_iam_role_policy" "ahmad-codebuild-other-perms" {
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "PassRolePermission",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::504649076991:role/ecsTaskExecutionRole"
+        },
+        {
             "Sid": "VisualEditor0",
             "Effect": "Allow",
             "Action": [
-                "logs:CreateLogStream",
-                "logs:CreateLogGroup",
-                "s3:PutObject"
+                "s3:PutObject",
+                "ecs:UpdateService",
+                "ecs:ListTaskDefinitionFamilies",
+                "ecs:RegisterTaskDefinition",
+                "ecs:ListTaskDefinitions",
+                "ecs:UpdateTaskSet",
+                "ecs:DescribeTaskDefinition"
             ],
             "Resource": "*"
         }
@@ -407,7 +441,7 @@ resource "aws_iam_role_policy" "ahmad-codebuild-other-perms" {
 }
 
 resource "aws_iam_role_policy" "ahmad-codebuild-base-perms" {
-  name = "ahmad-codebuild-other-perms"
+  name = "ahmad-codebuild-base-perms"
   role = aws_iam_role.ahmad-codebuild-role-terra.name
 
   policy = jsonencode({
@@ -416,9 +450,8 @@ resource "aws_iam_role_policy" "ahmad-codebuild-base-perms" {
         {
             "Effect": "Allow",
             "Resource": [
-                "arn:aws:logs:us-east-2:504649076991:log-group:/aws/codebuild/ahmad-ecs-build",
-                "arn:aws:logs:us-east-2:504649076991:log-group:/aws/codebuild/ahmad-ecs-build:*",
-                # aws_codebuild_project.project-using-github-app-ahmad.arn
+                "arn:aws:logs:*:*:log-group:/aws/codebuild/*",
+                "arn:aws:logs:*:*:log-group:/aws/codebuild/*:*",
             ],
             "Action": [
                 "logs:CreateLogGroup",
@@ -449,20 +482,19 @@ resource "aws_iam_role_policy" "ahmad-codebuild-base-perms" {
                 "codebuild:BatchPutCodeCoverages"
             ],
             "Resource": [
-                "arn:aws:codebuild:us-east-2:504649076991:report-group/ahmad-ecs-build-*"
+                "arn:aws:codebuild:*:*:report-group/*-*"
             ]
         }
       ]
   })
 }
 
-
-
 ##################### CodeBuild Code ###################
 resource "aws_codebuild_project" "project-using-github-app-ahmad" {
   name         = "project-using-github-app"
   description  = "gets_source_from_github_via_the_github_app"
-  service_role = "arn:aws:iam::504649076991:role/service-role/codebuild-ahmad-ecs-build-service-role"
+  # service_role = "arn:aws:iam::504649076991:role/service-role/codebuild-ahmad-ecs-build-service-role"
+  service_role = aws_iam_role.ahmad-codebuild-role-terra.arn
 
   artifacts {
     type = "NO_ARTIFACTS"
@@ -515,10 +547,166 @@ resource "aws_codebuild_project" "project-using-github-app-ahmad" {
   }
 }
 
+### ---- CodePipeline Perms ------ ###
+resource "aws_iam_role" "ahmad-codepipeline-role-terra" {
+  name = "ahmad-codepipeline-role-terra"
+  assume_role_policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "CodePipelineTrustPolicy",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "codepipeline.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+                "StringEquals": {
+                    "aws:SourceAccount": "504649076991"
+                }
+            }
+        }
+      ]
+  })
+
+  tags = {
+      "Name" = "ahmad-codepipeline-role-terra"
+      "owner" = "ahmad"
+    }
+}
+
+resource "aws_iam_role_policy_attachment" "ahmad-codepipeline-ecs-perm" {
+  role = aws_iam_role.ahmad-codepipeline-role-terra.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonECS_FullAccess"
+}
+
+resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
+  role = aws_iam_role.ahmad-codepipeline-role-terra.name
+  policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowS3BucketAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetBucketVersioning",
+                "s3:GetBucketAcl",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::flowlogs-bucket-ahmad"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceAccount": "504649076991"
+                }
+            }
+        },
+        {
+            "Sid": "AllowS3ObjectAccess",
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": [
+                "arn:aws:s3:::flowlogs-bucket-ahmad/*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceAccount": "504649076991"
+                }
+            }
+        },
+        {
+            "Action": [
+                "codebuild:BatchGetBuilds",
+                "codebuild:StartBuild",
+                "codebuild:BatchGetBuildBatches",
+                "codebuild:StartBuildBatch"
+            ],
+            "Resource": [
+                "arn:aws:codebuild:*:504649076991:project/project-using-github-app"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "codeconnections:UseConnection",
+                "codestar-connections:UseConnection"
+            ],
+            "Resource": [
+                "arn:aws:codestar-connections:*:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf",
+                "arn:aws:codeconnections:*:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf"
+            ]
+        },
+        {
+            "Sid": "TaskDefinitionPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "ecs:DescribeTaskDefinition",
+                "ecs:RegisterTaskDefinition"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "ECSServicePermissions",
+            "Effect": "Allow",
+            "Action": [
+                "ecs:DescribeServices",
+                "ecs:UpdateService"
+            ],
+            "Resource": [
+                "arn:aws:ecs:*:504649076991:service/ahmad-ecs-cluster-terra/*"
+            ]
+        },
+        {
+            "Sid": "ECSTagResource",
+            "Effect": "Allow",
+            "Action": [
+                "ecs:TagResource"
+            ],
+            "Resource": [
+                "arn:aws:ecs:*:504649076991:task-definition/arn:aws:ecs:us-east-2:504649076991:task-definition/ahmad-taskdef-terra:*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "ecs:CreateAction": [
+                        "RegisterTaskDefinition"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "IamPassRolePermissions",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": [
+                "arn:aws:iam::504649076991:role/ecsTaskExecutionRole"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": [
+                        "ecs.amazonaws.com",
+                        "ecs-tasks.amazonaws.com"
+                    ]
+                }
+            }
+        }
+      ]
+  })
+}
+
 ################## CodePipeline Code ###############
-resource "aws_codepipeline" "codepipeline" {
-  name     = "tf-test-pipeline"
-  role_arn = "arn:aws:iam::504649076991:role/service-role/AWSCodePipelineServiceRole-us-east-2-MyECSBuild"
+resource "aws_codepipeline" "ahmad-codepipeline-terra" {
+  name     = "ahmad-codepipeline-terra"
+  # role_arn = "arn:aws:iam::504649076991:role/service-role/AWSCodePipelineServiceRole-us-east-2-MyECSBuild"
+  role_arn = aws_iam_role.ahmad-codepipeline-role-terra.arn
 
   artifact_store {
     location = "flowlogs-bucket-ahmad"
@@ -594,18 +782,79 @@ resource "aws_codepipeline" "codepipeline" {
   #     }
   #   }
   # }
+
+  tags = {
+    "Name" = "ahmad-codepipeline-terra"
+    "owner" = "ahmad"
+  }
 }
 
+
+
+#### ----- CodeDeploy Perms ----- ######
+resource "aws_iam_role" "ahmad-codedeploy-role-terra" {
+  name = "ahmad-codedeploy-role-terra"
+  assume_role_policy = jsonencode({
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "",
+            "Effect": "Allow",
+            "Principal": {
+                "Service": "codedeploy.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+        }
+      ]
+  })
+
+  tags = {
+      "Name" = "ahmad-codedeploy-role-terra"
+      "owner" = "ahmad"
+    }
+}
+
+resource "aws_iam_role_policy_attachment" "ahmad-codedeploy-ec2-perm" {
+  role = aws_iam_role.ahmad-codedeploy-role-terra.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "ahmad-codedeploy-for-ec2-perm" {
+  role = aws_iam_role.ahmad-codedeploy-role-terra.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy"
+}
+
+resource "aws_iam_role_policy_attachment" "ahmad-codedeploy-full-access" {
+  role = aws_iam_role.ahmad-codedeploy-role-terra.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "ahmad-codedeploy-role" {
+  role = aws_iam_role.ahmad-codedeploy-role-terra.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+}
+
+resource "aws_iam_role_policy_attachment" "ahmad-codedeploy-ecs-perm" {
+  role = aws_iam_role.ahmad-codedeploy-role-terra.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS"
+}
+
+################# CodeDeploy Code ###############
 resource "aws_codedeploy_app" "ahmad-deploy-app-terra" {
   compute_platform = "ECS"
   name             = "ahmad-deploy-app-terra"
+
+  tags = {
+    "Name" = "ahmad-deploy-app-terra"
+    "owner" = "ahmad"
+  }
 }
 
 resource "aws_codedeploy_deployment_group" "ahmad-deploy-group-terra" {
   app_name               = aws_codedeploy_app.ahmad-deploy-app-terra.name
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
   deployment_group_name  = "ahmad-deploy-group-terra"
-  service_role_arn       = "arn:aws:iam::504649076991:role/AWSCodeDeployServiceRole"
+  service_role_arn       = aws_iam_role.ahmad-codedeploy-role-terra.arn
 
   auto_rollback_configuration {
     enabled = true
@@ -647,6 +896,11 @@ resource "aws_codedeploy_deployment_group" "ahmad-deploy-group-terra" {
         name = aws_lb_target_group.ahmad-lb-targroup2-terra.name
       }
     }
+  }
+
+  tags = {
+    "Name" = "ahmad-deploy-group-terra"
+    "owner" = "ahmad"
   }
 }
 
