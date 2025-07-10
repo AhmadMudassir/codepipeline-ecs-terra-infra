@@ -493,7 +493,6 @@ resource "aws_iam_role_policy" "ahmad-codebuild-base-perms" {
 resource "aws_codebuild_project" "project-using-github-app-ahmad" {
   name         = "project-using-github-app"
   description  = "gets_source_from_github_via_the_github_app"
-  # service_role = "arn:aws:iam::504649076991:role/service-role/codebuild-ahmad-ecs-build-service-role"
   service_role = aws_iam_role.ahmad-codebuild-role-terra.arn
 
   artifacts {
@@ -705,7 +704,6 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
 ################## CodePipeline Code ###############
 resource "aws_codepipeline" "ahmad-codepipeline-terra" {
   name     = "ahmad-codepipeline-terra"
-  # role_arn = "arn:aws:iam::504649076991:role/service-role/AWSCodePipelineServiceRole-us-east-2-MyECSBuild"
   role_arn = aws_iam_role.ahmad-codepipeline-role-terra.arn
 
   artifact_store {
