@@ -8,7 +8,7 @@ Resources:
 
       Properties:
 
-        TaskDefinition: "arn:aws:ecs:us-east-2:504649076991:task-definition/ahmad-taskdef-terra"
+        TaskDefinition: "arn:aws:ecs:us-east-2:<account_id>:task-definition/ahmad-taskdef-terra"
 
         LoadBalancerInfo:
 
