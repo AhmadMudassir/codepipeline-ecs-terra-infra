@@ -113,7 +113,7 @@ resource "aws_ecs_task_definition" "ahmad-taskdef-terra" {
   network_mode = "awsvpc"
   cpu = 256
   memory = 512
-  execution_role_arn = "arn:aws:iam::504649076991:role/ecsTaskExecutionRole"
+  execution_role_arn = "arn:aws:iam::<account_id>:role/ecsTaskExecutionRole"
   container_definitions = jsonencode([
     {
         name = "nginx-terra"
@@ -401,8 +401,8 @@ resource "aws_iam_role_policy" "ahmad-codeconnect-codebuild-perm" {
                 "codeconnections:UseConnection"
             ],
             "Resource": [
-                "arn:aws:codestar-connections:us-east-2:504649076991:connection/*",
-                "arn:aws:codeconnections:us-east-2:504649076991:connection/*"
+                "arn:aws:codestar-connections:us-east-2:<account_id>:connection/*",
+                "arn:aws:codeconnections:us-east-2:<account_id>:connection/*"
             ]
       }
     ]
@@ -420,7 +420,7 @@ resource "aws_iam_role_policy" "ahmad-codebuild-other-perms" {
             "Sid": "PassRolePermission",
             "Effect": "Allow",
             "Action": "iam:PassRole",
-            "Resource": "arn:aws:iam::504649076991:role/ecsTaskExecutionRole"
+            "Resource": "arn:aws:iam::<account_id>:role/ecsTaskExecutionRole"
         },
         {
             "Sid": "VisualEditor0",
@@ -507,12 +507,12 @@ resource "aws_codebuild_project" "project-using-github-app-ahmad" {
     privileged_mode = true
     environment_variable {
       name = "REPOSITORY_URI"
-      value = "504649076991.dkr.ecr.us-east-2.amazonaws.com/ahmad-codepipe-repo"
+      value = "your-value"
     }
 
     environment_variable {
       name = "AWS_DEFAULT_REGION"
-      value = "us-east-2"
+      value = "your-value"
     }
 
     environment_variable {
@@ -536,7 +536,7 @@ resource "aws_codebuild_project" "project-using-github-app-ahmad" {
     location = "https://github.com/AhmadMudassir/demo-node-app.git"
     auth {
       type     = "CODECONNECTIONS"
-      resource = "arn:aws:codeconnections:us-east-2:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf"
+      resource = "your-codeconnection-arn"
     }
   }
 
@@ -561,7 +561,7 @@ resource "aws_iam_role" "ahmad-codepipeline-role-terra" {
             "Action": "sts:AssumeRole",
             "Condition": {
                 "StringEquals": {
-                    "aws:SourceAccount": "504649076991"
+                    "aws:SourceAccount": "<account_id>"
                 }
             }
         }
@@ -597,7 +597,7 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
             ],
             "Condition": {
                 "StringEquals": {
-                    "aws:ResourceAccount": "504649076991"
+                    "aws:ResourceAccount": "<account_id>"
                 }
             }
         },
@@ -615,7 +615,7 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
             ],
             "Condition": {
                 "StringEquals": {
-                    "aws:ResourceAccount": "504649076991"
+                    "aws:ResourceAccount": "<account_id>"
                 }
             }
         },
@@ -627,7 +627,7 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
                 "codebuild:StartBuildBatch"
             ],
             "Resource": [
-                "arn:aws:codebuild:*:504649076991:project/project-using-github-app"
+                "arn:aws:codebuild:*:<account_id>:project/project-using-github-app"
             ],
             "Effect": "Allow"
         },
@@ -638,8 +638,8 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
                 "codestar-connections:UseConnection"
             ],
             "Resource": [
-                "arn:aws:codestar-connections:*:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf",
-                "arn:aws:codeconnections:*:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf"
+                "arn:aws:codestar-connections:*:<account_id>:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf",
+                "arn:aws:codeconnections:*:<account_id>:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf"
             ]
         },
         {
@@ -661,7 +661,7 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
                 "ecs:UpdateService"
             ],
             "Resource": [
-                "arn:aws:ecs:*:504649076991:service/ahmad-ecs-cluster-terra/*"
+                "arn:aws:ecs:*:<account_id>:service/ahmad-ecs-cluster-terra/*"
             ]
         },
         {
@@ -671,7 +671,7 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
                 "ecs:TagResource"
             ],
             "Resource": [
-                "arn:aws:ecs:*:504649076991:task-definition/arn:aws:ecs:us-east-2:504649076991:task-definition/ahmad-taskdef-terra:*"
+                "arn:aws:ecs:*:<account_id>:task-definition/arn:aws:ecs:us-east-2:<account_id>:task-definition/ahmad-taskdef-terra:*"
             ],
             "Condition": {
                 "StringEquals": {
@@ -686,7 +686,7 @@ resource "aws_iam_role_policy" "ahmad-codepipe-other-perms-terra" {
             "Effect": "Allow",
             "Action": "iam:PassRole",
             "Resource": [
-                "arn:aws:iam::504649076991:role/ecsTaskExecutionRole"
+                "arn:aws:iam::<account_id>:role/ecsTaskExecutionRole"
             ],
             "Condition": {
                 "StringEquals": {
@@ -723,7 +723,7 @@ resource "aws_codepipeline" "ahmad-codepipeline-terra" {
       output_artifacts = ["source_output"]
 
       configuration = {
-        ConnectionArn    = "arn:aws:codeconnections:us-east-2:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf"
+        ConnectionArn    = "arn:aws:codeconnections:us-east-2:<account_id>:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bfyour"
         FullRepositoryId = "AhmadMudassir/aws-codepipline-ecs"
         BranchName       = "main"
       }
