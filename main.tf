@@ -401,8 +401,8 @@ resource "aws_iam_role_policy" "ahmad-codeconnect-codebuild-perm" {
                 "codeconnections:UseConnection"
             ],
             "Resource": [
-                "arn:aws:codestar-connections:us-east-2:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf",
-                "arn:aws:codeconnections:us-east-2:504649076991:connection/bfac014c-01cc-4fdf-a5d2-b4362fe928bf"
+                "arn:aws:codestar-connections:us-east-2:504649076991:connection/*",
+                "arn:aws:codeconnections:us-east-2:504649076991:connection/*"
             ]
       }
     ]
