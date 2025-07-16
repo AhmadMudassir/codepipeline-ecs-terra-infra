@@ -60,6 +60,8 @@ Application Load Balancer
   - appspec.yml
   - index.js
 
+⚠️ **Important:** You must create the AWS CodeStar (or CodeConnections) connection to GitHub manually in the AWS Console before deploying. This is not provisioned by Terraform.
+
 ---
 
 ## ⚡ Getting Started
