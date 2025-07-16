@@ -69,7 +69,7 @@ Application Load Balancer
 ```bash
 # 1️⃣ Clone this repository
 git clone https://github.com/AhmadMudassir/codepipeline-ecs-terra-infra.git
-cd YOUR-REPO
+cd codepipeline-ecs-terra-infra
 
 # 2️⃣ Initialize Terraform
 terraform init
