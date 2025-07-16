@@ -39,7 +39,8 @@ ECS Service (EC2 Launch Type)
 Application Load Balancer
 ```
 
-*(Optional: Insert your diagram here)*
+<img width="1141" height="561" alt="CodePipeline-ecs-infra-dark" src="https://github.com/user-attachments/assets/b0ffb055-6eb3-4f13-9547-7f41e722a9a7" />
+
 
 ---
 
@@ -65,7 +66,7 @@ Application Load Balancer
 
 ```bash
 # 1️⃣ Clone this repository
-git clone https://github.com/YOUR-USER/YOUR-REPO.git
+git clone https://github.com/AhmadMudassir/codepipeline-ecs-terra-infra.git
 cd YOUR-REPO
 
 # 2️⃣ Initialize Terraform
